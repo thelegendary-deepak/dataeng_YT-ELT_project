@@ -3,16 +3,21 @@ import json
 import os
 from dotenv import load_dotenv
 from datetime import date
+from airflow.decorators import task
+from airflow.models import Variable
 
-load_dotenv(dotenv_path = "./.env")
+#load_dotenv(dotenv_path = "./.env")
 
-API_KEY = os.getenv("API_KEY")
+#API_KEY = os.getenv("API_KEY")
+API_KEY = Variable.get("API_KEY")
 
 CHANNEL_HANDLE = "MrBeast"
+CHANNEL_HANDLE = Variable.get("CHANNEL_HANDLE")
 playlistId = "UUX6OQ3DkcsbYNE6H8uQQuVA"
 
 max_results = 50
 
+@task
 def get_channel_subscriber_count():
 
     try:
@@ -33,6 +38,33 @@ def get_channel_subscriber_count():
     except requests.exceptions.RequestException as e:
         raise e
 
+@task
+def get_playlist_id():
+
+    try:
+
+        url = f"https://youtube.googleapis.com/youtube/v3/channels?part=contentDetails&forHandle={CHANNEL_HANDLE}&key={API_KEY}"
+
+        response = requests.get(url)
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        # print(json.dumps(data,indent=4))
+
+        channel_items = data["items"][0]
+
+        channel_playlistId = channel_items["contentDetails"]["relatedPlaylists"][
+            "uploads"
+        ]
+
+        return channel_playlistId
+
+    except requests.exceptions.RequestException as e:
+        raise e
+
+@task
 def get_video_ids(playlistid):
     video_ids =[]
     pageToken = None
@@ -64,7 +96,8 @@ def get_video_ids(playlistid):
 
 
 
-def extract_video_data(video_id):
+@task
+def extract_video_data(video_ids):
     extracted_data = []
 
     
@@ -102,6 +135,7 @@ def extract_video_data(video_id):
     except requests.exceptions.RequestException as e:
         raise e
 
+@task
 def save_to_json(extracted_data):
     file_path = f"./data/YT_data_{date.today()}.json"
 
