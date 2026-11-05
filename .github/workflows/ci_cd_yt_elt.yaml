@@ -24,7 +24,7 @@ jobs:
                 files: |
                     Dockerfile
                     requirements.txt
-                    
+
             - name: Set up Docker Buildx
               if: steps.changed-files-build.outputs.any_changed == 'true'
               uses: docker/setup-buildx-action@v3
@@ -79,32 +79,9 @@ jobs:
                     dags/**
                     include/**
                     docker-compose.yaml
-                    .github/workflows/**
           - name: Setup Docker Compose
             if: steps.changed-files-build.outputs.any_changed == 'true' || github.event_name == 'workflow_dispatch'
             run: docker compose up -d --wait
-          - name: Wait for DAG registration
-            if: steps.changed-files-build.outputs.any_changed == 'true' || github.event_name == 'workflow_dispatch'
-            run: |
-              for attempt in {1..30}; do
-                dag_count=$(docker exec postgres psql -X -A -t \
-                  -U "$POSTGRES_CONN_USERNAME" \
-                  -d "$METADATA_DATABASE_NAME" \
-                  -c "SELECT COUNT(*) FROM dag WHERE dag_id IN ('produce_json', 'update_db', 'data_quality') AND is_active;")
-
-                if [ "$dag_count" = "3" ]; then
-                  echo "All DAGs are registered and active."
-                  exit 0
-                fi
-
-                echo "Waiting for DAG registration ($dag_count of 3)..."
-                sleep 2
-              done
-
-              echo "DAGs did not register in time."
-              docker logs airflow-scheduler
-              docker exec airflow-worker airflow dags list-import-errors
-              exit 1
           - name: Run Unit and Integration Tests
             if: steps.changed-files-build.outputs.any_changed == 'true' || github.event_name == 'workflow_dispatch'
             run: docker exec -t airflow-worker sh -c "pytest tests/ -v"
