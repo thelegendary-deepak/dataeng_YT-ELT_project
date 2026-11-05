@@ -6,6 +6,8 @@ from datawarehouse.dwh import staging_table, core_table
 from dataquality.soda import yt_elt_data_quality
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
+# Airflow DAG definitions for the YouTube ELT pipeline.
+
 local_tz = pendulum.timezone("UTC")
 
 default_args = {
